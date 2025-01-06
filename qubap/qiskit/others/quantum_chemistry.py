@@ -1,11 +1,19 @@
-
 import numpy as np
 from qiskit_nature.circuit.library import HartreeFock
-from qiskit_nature.transformers.second_quantization.electronic import FreezeCoreTransformer
-from qiskit_nature.problems.second_quantization.electronic import ElectronicStructureProblem
-from qiskit_nature.mappers.second_quantization import ParityMapper, JordanWignerMapper, BravyiKitaevMapper
 from qiskit_nature.converters.second_quantization.qubit_converter import QubitConverter
 from qiskit_nature.drivers.second_quantization import PySCFDriver
+from qiskit_nature.mappers.second_quantization import (
+    BravyiKitaevMapper,
+    JordanWignerMapper,
+    ParityMapper,
+)
+from qiskit_nature.problems.second_quantization.electronic import (
+    ElectronicStructureProblem,
+)
+from qiskit_nature.transformers.second_quantization.electronic import (
+    FreezeCoreTransformer,
+)
+
 
 def HeisenbergHamiltonian(J=1, H=1, num_qubits=2, neighbours=None):
     """
@@ -59,13 +67,25 @@ def HeisenbergHamiltonian(J=1, H=1, num_qubits=2, neighbours=None):
         Hamiltonian_op_z.append(op_z.copy())
 
     Hamiltonian = SummedOp(
-        [PauliOp(Pauli((Hamiltonian_op_z[j], Hamiltonian_op_x[j])), Hamiltonian_coeff[j]) for j in range(num_op)])
+        [
+            PauliOp(
+                Pauli((Hamiltonian_op_z[j], Hamiltonian_op_x[j])), Hamiltonian_coeff[j]
+            )
+            for j in range(num_op)
+        ]
+    )
 
     return Hamiltonian
 
 
-def H2(distance=None, freeze_core=True, remove_orbitals=False, initial_state=False, operator=True,
-       mapper_type='ParityMapper'):
+def H2(
+    distance=None,
+    freeze_core=True,
+    remove_orbitals=False,
+    initial_state=False,
+    operator=True,
+    mapper_type="ParityMapper",
+):
     """
     Qiskit operator of the LiH
     Parameters
@@ -93,14 +113,15 @@ def H2(distance=None, freeze_core=True, remove_orbitals=False, initial_state=Fal
     """
 
     if distance is None:
-        distance = .761
+        distance = 0.761
 
-    molecule = 'H .0 .0 .0; H .0 .0 ' + str(distance)
+    molecule = "H .0 .0 .0; H .0 .0 " + str(distance)
 
     try:
         driver = PySCFDriver(molecule)
     except Exception:
         from qiskit_nature.drivers.second_quantization.pyquanted import PyQuanteDriver
+
         driver = PyQuanteDriver(molecule)
 
     # qmolecule = driver.run()
@@ -108,7 +129,9 @@ def H2(distance=None, freeze_core=True, remove_orbitals=False, initial_state=Fal
     if remove_orbitals is False:
         Transformer = FreezeCoreTransformer(freeze_core=freeze_core)
     else:
-        Transformer = FreezeCoreTransformer(freeze_core=freeze_core, remove_orbitals=remove_orbitals)
+        Transformer = FreezeCoreTransformer(
+            freeze_core=freeze_core, remove_orbitals=remove_orbitals
+        )
 
     problem = ElectronicStructureProblem(driver, transformers=[Transformer])
 
@@ -119,11 +142,11 @@ def H2(distance=None, freeze_core=True, remove_orbitals=False, initial_state=Fal
     main_op = second_q_ops[0]
 
     # Setup the mapper and qubit converter
-    if mapper_type == 'ParityMapper':
+    if mapper_type == "ParityMapper":
         mapper = ParityMapper()
-    elif mapper_type == 'JordanWignerMapper':
+    elif mapper_type == "JordanWignerMapper":
         mapper = JordanWignerMapper()
-    elif mapper_type == 'BravyiKitaevMapper':
+    elif mapper_type == "BravyiKitaevMapper":
         mapper = BravyiKitaevMapper()
     else:
         # TODO: Raise an error
@@ -135,7 +158,9 @@ def H2(distance=None, freeze_core=True, remove_orbitals=False, initial_state=Fal
     if operator is False:
         return converter, problem
     else:
-        particle_number = problem.grouped_property_transformed.get_property("ParticleNumber")
+        particle_number = problem.grouped_property_transformed.get_property(
+            "ParticleNumber"
+        )
         num_particles = (particle_number.num_alpha, particle_number.num_beta)
         num_spin_orbitals = particle_number.num_spin_orbitals
         qubit_op = converter.convert(main_op, num_particles=num_particles)
@@ -146,8 +171,14 @@ def H2(distance=None, freeze_core=True, remove_orbitals=False, initial_state=Fal
             return qubit_op, init_state
 
 
-def LiH(distance=None, freeze_core=True, remove_orbitals=None, initial_state=False, operator=True,
-        mapper_type='ParityMapper'):
+def LiH(
+    distance=None,
+    freeze_core=True,
+    remove_orbitals=None,
+    initial_state=False,
+    operator=True,
+    mapper_type="ParityMapper",
+):
     """
     Qiskit operator of the LiH
     Parameters
@@ -180,12 +211,13 @@ def LiH(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
     if remove_orbitals is None:
         remove_orbitals = [3, 4]
 
-    molecule = 'Li 0.0 0.0 0.0; H 0.0 0.0 ' + str(distance)
+    molecule = "Li 0.0 0.0 0.0; H 0.0 0.0 " + str(distance)
 
     try:
         driver = PySCFDriver(molecule)
     except Exception:
         from qiskit_nature.drivers.second_quantization.pyquanted import PyQuanteDriver
+
         driver = PyQuanteDriver(molecule)
 
     # qmolecule = driver.run()
@@ -193,7 +225,9 @@ def LiH(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
     if remove_orbitals is False:
         Transformer = FreezeCoreTransformer(freeze_core=freeze_core)
     else:
-        Transformer = FreezeCoreTransformer(freeze_core=freeze_core, remove_orbitals=remove_orbitals)
+        Transformer = FreezeCoreTransformer(
+            freeze_core=freeze_core, remove_orbitals=remove_orbitals
+        )
 
     problem = ElectronicStructureProblem(driver, transformers=[Transformer])
 
@@ -204,11 +238,11 @@ def LiH(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
     main_op = second_q_ops[0]
 
     # Setup the mapper and qubit converter
-    if mapper_type == 'ParityMapper':
+    if mapper_type == "ParityMapper":
         mapper = ParityMapper()
-    elif mapper_type == 'JordanWignerMapper':
+    elif mapper_type == "JordanWignerMapper":
         mapper = JordanWignerMapper()
-    elif mapper_type == 'BravyiKitaevMapper':
+    elif mapper_type == "BravyiKitaevMapper":
         mapper = BravyiKitaevMapper()
     else:
         return None
@@ -224,7 +258,9 @@ def LiH(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
         #                  problem.grouped_property_transformed.get_property("ParticleNumber").num_beta)
         # num_spin_orbitals = 2 * problem.molecule_data_transformed.num_molecular_orbitals
 
-        particle_number = problem.grouped_property_transformed.get_property("ParticleNumber")
+        particle_number = problem.grouped_property_transformed.get_property(
+            "ParticleNumber"
+        )
         num_particles = (particle_number.num_alpha, particle_number.num_beta)
         num_spin_orbitals = particle_number.num_spin_orbitals
         qubit_op = converter.convert(main_op, num_particles=num_particles)
@@ -235,8 +271,14 @@ def LiH(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
             return qubit_op, init_state
 
 
-def BeH2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=False, operator=True,
-         mapper_type='ParityMapper'):
+def BeH2(
+    distance=None,
+    freeze_core=True,
+    remove_orbitals=None,
+    initial_state=False,
+    operator=True,
+    mapper_type="ParityMapper",
+):
     """
     Qiskit operator of the BeH2
     Parameters
@@ -269,19 +311,24 @@ def BeH2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fa
     if remove_orbitals is None:
         remove_orbitals = [3, 6]
 
-    molecule = 'H 0.0 0.0 -' + str(distance) + '; Be 0.0 0.0 0.0; H 0.0 0.0 ' + str(distance)
+    molecule = (
+        "H 0.0 0.0 -" + str(distance) + "; Be 0.0 0.0 0.0; H 0.0 0.0 " + str(distance)
+    )
 
     try:
         driver = PySCFDriver(molecule)
     except Exception:
         from qiskit_nature.drivers.second_quantization.pyquanted import PyQuanteDriver
+
         driver = PyQuanteDriver(molecule)
 
     # qmolecule = driver.run()
     if remove_orbitals is False:
         Transformer = FreezeCoreTransformer(freeze_core=freeze_core)
     else:
-        Transformer = FreezeCoreTransformer(freeze_core=freeze_core, remove_orbitals=remove_orbitals)
+        Transformer = FreezeCoreTransformer(
+            freeze_core=freeze_core, remove_orbitals=remove_orbitals
+        )
 
     problem = ElectronicStructureProblem(driver, transformers=[Transformer])
 
@@ -292,11 +339,11 @@ def BeH2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fa
     main_op = second_q_ops[0]
 
     # Setup the mapper and qubit converter
-    if mapper_type == 'ParityMapper':
+    if mapper_type == "ParityMapper":
         mapper = ParityMapper()
-    elif mapper_type == 'JordanWignerMapper':
+    elif mapper_type == "JordanWignerMapper":
         mapper = JordanWignerMapper()
-    elif mapper_type == 'BravyiKitaevMapper':
+    elif mapper_type == "BravyiKitaevMapper":
         mapper = BravyiKitaevMapper()
     else:
         return None
@@ -310,7 +357,9 @@ def BeH2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fa
         # num_particles = (problem.grouped_property_transformed.get_property("ParticleNumber").num_alpha,
         #                  problem.grouped_property_transformed.get_property("ParticleNumber").num_beta)
 
-        particle_number = problem.grouped_property_transformed.get_property("ParticleNumber")
+        particle_number = problem.grouped_property_transformed.get_property(
+            "ParticleNumber"
+        )
         num_particles = (particle_number.num_alpha, particle_number.num_beta)
         num_spin_orbitals = particle_number.num_spin_orbitals
         qubit_op = converter.convert(main_op, num_particles=num_particles)
@@ -321,8 +370,14 @@ def BeH2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fa
             return qubit_op, init_state
 
 
-def H2O(distance=None, freeze_core=True, remove_orbitals=None, initial_state=False, operator=True,
-        mapper_type='ParityMapper'):
+def H2O(
+    distance=None,
+    freeze_core=True,
+    remove_orbitals=None,
+    initial_state=False,
+    operator=True,
+    mapper_type="ParityMapper",
+):
     """
     Qiskit operator of the BeH2
     Parameters
@@ -358,19 +413,32 @@ def H2O(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
     x = distance * np.sin(np.deg2rad(104.45 / 2))
     y = distance * np.cos(np.deg2rad(104.45 / 2))
 
-    molecule = 'O 0.0 0.0 0.0; H ' + str(x) + ' ' + str(y) + ' 0.0; H -' + str(x) + ' ' + str(y) + ' 0.0'
+    molecule = (
+        "O 0.0 0.0 0.0; H "
+        + str(x)
+        + " "
+        + str(y)
+        + " 0.0; H -"
+        + str(x)
+        + " "
+        + str(y)
+        + " 0.0"
+    )
 
     try:
         driver = PySCFDriver(molecule)
     except Exception:
         from qiskit_nature.drivers.second_quantization.pyquanted import PyQuanteDriver
+
         driver = PyQuanteDriver(molecule)
 
     # qmolecule = driver.run()
     if remove_orbitals is False:
         Transformer = FreezeCoreTransformer(freeze_core=freeze_core)
     else:
-        Transformer = FreezeCoreTransformer(freeze_core=freeze_core, remove_orbitals=remove_orbitals)
+        Transformer = FreezeCoreTransformer(
+            freeze_core=freeze_core, remove_orbitals=remove_orbitals
+        )
 
     problem = ElectronicStructureProblem(driver, transformers=[Transformer])
 
@@ -381,11 +449,11 @@ def H2O(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
     main_op = second_q_ops[0]
 
     # Setup the mapper and qubit converter
-    if mapper_type == 'ParityMapper':
+    if mapper_type == "ParityMapper":
         mapper = ParityMapper()
-    elif mapper_type == 'JordanWignerMapper':
+    elif mapper_type == "JordanWignerMapper":
         mapper = JordanWignerMapper()
-    elif mapper_type == 'BravyiKitaevMapper':
+    elif mapper_type == "BravyiKitaevMapper":
         mapper = BravyiKitaevMapper()
     else:
         return None
@@ -399,7 +467,9 @@ def H2O(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
         # num_particles = (problem.grouped_property_transformed.get_property("ParticleNumber").num_alpha,
         #                 problem.grouped_property_transformed.get_property("ParticleNumber").num_beta)
 
-        particle_number = problem.grouped_property_transformed.get_property("ParticleNumber")
+        particle_number = problem.grouped_property_transformed.get_property(
+            "ParticleNumber"
+        )
         num_particles = (particle_number.num_alpha, particle_number.num_beta)
         num_spin_orbitals = particle_number.num_spin_orbitals
         qubit_op = converter.convert(main_op, num_particles=num_particles)
@@ -410,8 +480,14 @@ def H2O(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
             return qubit_op, init_state
 
 
-def CH4(distance=None, freeze_core=True, remove_orbitals=None, initial_state=False, operator=True,
-        mapper_type='ParityMapper'):
+def CH4(
+    distance=None,
+    freeze_core=True,
+    remove_orbitals=None,
+    initial_state=False,
+    operator=True,
+    mapper_type="ParityMapper",
+):
     """
     Qiskit operator of the CH4
     Parameters
@@ -457,18 +533,23 @@ def CH4(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
     H3 = np.array([-r_inf * np.cos(np.pi / 3), r_inf * np.sin(np.pi / 3), -height_low])
     H4 = np.array([-r_inf * np.cos(np.pi / 3), -r_inf * np.sin(np.pi / 3), -height_low])
 
-    molecule = 'O 0 0 0; H {}; H {}; H {}; H {}'.format(str(H1)[1:-1], str(H2)[1:-1], str(H3)[1:-1], str(H4)[1:-1])
+    molecule = "O 0 0 0; H {}; H {}; H {}; H {}".format(
+        str(H1)[1:-1], str(H2)[1:-1], str(H3)[1:-1], str(H4)[1:-1]
+    )
 
     try:
         driver = PySCFDriver(molecule)
     except Exception:
         from qiskit_nature.drivers.second_quantization.pyquanted import PyQuanteDriver
+
         driver = PyQuanteDriver(molecule)
 
     if remove_orbitals is False:
         Transformer = FreezeCoreTransformer(freeze_core=freeze_core)
     else:
-        Transformer = FreezeCoreTransformer(freeze_core=freeze_core, remove_orbitals=remove_orbitals)
+        Transformer = FreezeCoreTransformer(
+            freeze_core=freeze_core, remove_orbitals=remove_orbitals
+        )
 
     problem = ElectronicStructureProblem(driver, transformers=[Transformer])
 
@@ -479,11 +560,11 @@ def CH4(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
     main_op = second_q_ops[0]
 
     # Setup the mapper and qubit converter
-    if mapper_type == 'ParityMapper':
+    if mapper_type == "ParityMapper":
         mapper = ParityMapper()
-    elif mapper_type == 'JordanWignerMapper':
+    elif mapper_type == "JordanWignerMapper":
         mapper = JordanWignerMapper()
-    elif mapper_type == 'BravyiKitaevMapper':
+    elif mapper_type == "BravyiKitaevMapper":
         mapper = BravyiKitaevMapper()
     else:
         return None
@@ -494,7 +575,9 @@ def CH4(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
     if not operator:
         return converter, problem
     else:
-        particle_number = problem.grouped_property_transformed.get_property("ParticleNumber")
+        particle_number = problem.grouped_property_transformed.get_property(
+            "ParticleNumber"
+        )
         num_particles = (particle_number.num_alpha, particle_number.num_beta)
         num_spin_orbitals = particle_number.num_spin_orbitals
         qubit_op = converter.convert(main_op, num_particles=num_particles)
@@ -505,8 +588,14 @@ def CH4(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fal
             return qubit_op, init_state
 
 
-def C2H2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=False, operator=True,
-         mapper_type='ParityMapper'):
+def C2H2(
+    distance=None,
+    freeze_core=True,
+    remove_orbitals=None,
+    initial_state=False,
+    operator=True,
+    mapper_type="ParityMapper",
+):
     """
     Qiskit operator of the C2H2
     Parameters
@@ -546,18 +635,21 @@ def C2H2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fa
     C2 = str(np.array([0, 0, distance[1] + distance[0]]))[1:-1]
     H2 = str(np.array([0, 0, 2 * distance[1] + distance[0]]))[1:-1]
 
-    molecule = 'H {}; C {}; C {}; H {}'.format(H1, C1, C2, H2)
+    molecule = "H {}; C {}; C {}; H {}".format(H1, C1, C2, H2)
 
     try:
         driver = PySCFDriver(molecule)
     except Exception:
         from qiskit_nature.drivers.second_quantization.pyquanted import PyQuanteDriver
+
         driver = PyQuanteDriver(molecule)
 
     if remove_orbitals is False:
         Transformer = FreezeCoreTransformer(freeze_core=freeze_core)
     else:
-        Transformer = FreezeCoreTransformer(freeze_core=freeze_core, remove_orbitals=remove_orbitals)
+        Transformer = FreezeCoreTransformer(
+            freeze_core=freeze_core, remove_orbitals=remove_orbitals
+        )
 
     problem = ElectronicStructureProblem(driver, transformers=[Transformer])
 
@@ -568,11 +660,11 @@ def C2H2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fa
     main_op = second_q_ops[0]
 
     # Setup the mapper and qubit converter
-    if mapper_type == 'ParityMapper':
+    if mapper_type == "ParityMapper":
         mapper = ParityMapper()
-    elif mapper_type == 'JordanWignerMapper':
+    elif mapper_type == "JordanWignerMapper":
         mapper = JordanWignerMapper()
-    elif mapper_type == 'BravyiKitaevMapper':
+    elif mapper_type == "BravyiKitaevMapper":
         mapper = BravyiKitaevMapper()
     else:
         return None
@@ -583,7 +675,9 @@ def C2H2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fa
     if not operator:
         return converter, problem
     else:
-        particle_number = problem.grouped_property_transformed.get_property("ParticleNumber")
+        particle_number = problem.grouped_property_transformed.get_property(
+            "ParticleNumber"
+        )
         num_particles = (particle_number.num_alpha, particle_number.num_beta)
         num_spin_orbitals = particle_number.num_spin_orbitals
         qubit_op = converter.convert(main_op, num_particles=num_particles)
@@ -594,34 +688,80 @@ def C2H2(distance=None, freeze_core=True, remove_orbitals=None, initial_state=Fa
             return qubit_op, init_state
 
 
-def molecules(molecule_name, distance=None, freeze_core=True, remove_orbitals=None, operator=True, initial_state=False,
-              mapper_type='ParityMapper', load=False):
+def molecules(
+    molecule_name,
+    distance=None,
+    freeze_core=True,
+    remove_orbitals=None,
+    operator=True,
+    initial_state=False,
+    mapper_type="ParityMapper",
+    load=False,
+):
     if load:
         try:
-            qubit_op = np.load('../data/molecules_qubitop.npy', allow_pickle=True).item()[molecule_name]
-            print('Molecule loaded')
+            qubit_op = np.load(
+                "../data/molecules_qubitop.npy", allow_pickle=True
+            ).item()[molecule_name]
+            print("Molecule loaded")
             return qubit_op
         except KeyError:
-            print('Computing molecule')
+            print("Computing molecule")
 
     molecule_name = molecule_name.lower()
-    if molecule_name == 'h2':
-        return H2(distance=distance, freeze_core=freeze_core, remove_orbitals=remove_orbitals,
-                  initial_state=initial_state, operator=operator, mapper_type=mapper_type)
-    elif molecule_name == 'lih':
-        return LiH(distance=distance, freeze_core=freeze_core, remove_orbitals=remove_orbitals,
-                   initial_state=initial_state, operator=operator, mapper_type=mapper_type)
-    elif molecule_name == 'beh2':
-        return BeH2(distance=distance, freeze_core=freeze_core, remove_orbitals=remove_orbitals,
-                    initial_state=initial_state, operator=operator, mapper_type=mapper_type)
-    elif molecule_name == 'h2o':
-        return H2O(distance=distance, freeze_core=freeze_core, remove_orbitals=remove_orbitals,
-                   initial_state=initial_state, operator=operator, mapper_type=mapper_type)
-    elif molecule_name == 'ch4':
-        return CH4(distance=distance, freeze_core=freeze_core, remove_orbitals=remove_orbitals,
-                   initial_state=initial_state, operator=operator, mapper_type=mapper_type)
-    elif molecule_name == 'c2h2':
-        return C2H2(distance=distance, freeze_core=freeze_core, remove_orbitals=remove_orbitals,
-                    initial_state=initial_state, operator=operator, mapper_type=mapper_type)
+    if molecule_name == "h2":
+        return H2(
+            distance=distance,
+            freeze_core=freeze_core,
+            remove_orbitals=remove_orbitals,
+            initial_state=initial_state,
+            operator=operator,
+            mapper_type=mapper_type,
+        )
+    elif molecule_name == "lih":
+        return LiH(
+            distance=distance,
+            freeze_core=freeze_core,
+            remove_orbitals=remove_orbitals,
+            initial_state=initial_state,
+            operator=operator,
+            mapper_type=mapper_type,
+        )
+    elif molecule_name == "beh2":
+        return BeH2(
+            distance=distance,
+            freeze_core=freeze_core,
+            remove_orbitals=remove_orbitals,
+            initial_state=initial_state,
+            operator=operator,
+            mapper_type=mapper_type,
+        )
+    elif molecule_name == "h2o":
+        return H2O(
+            distance=distance,
+            freeze_core=freeze_core,
+            remove_orbitals=remove_orbitals,
+            initial_state=initial_state,
+            operator=operator,
+            mapper_type=mapper_type,
+        )
+    elif molecule_name == "ch4":
+        return CH4(
+            distance=distance,
+            freeze_core=freeze_core,
+            remove_orbitals=remove_orbitals,
+            initial_state=initial_state,
+            operator=operator,
+            mapper_type=mapper_type,
+        )
+    elif molecule_name == "c2h2":
+        return C2H2(
+            distance=distance,
+            freeze_core=freeze_core,
+            remove_orbitals=remove_orbitals,
+            initial_state=initial_state,
+            operator=operator,
+            mapper_type=mapper_type,
+        )
     else:
-        raise Exception('The molecule {} is not implemented.'.format(molecule_name))
+        raise Exception("The molecule {} is not implemented.".format(molecule_name))

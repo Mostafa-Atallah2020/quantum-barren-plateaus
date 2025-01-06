@@ -1,0 +1,3 @@
+matplotlib
+isort
+black[jupyter]

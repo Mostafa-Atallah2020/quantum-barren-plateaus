@@ -2,19 +2,21 @@ import pennylane as qml
 import pennylane.numpy as np
 
 
-def VQE( Hamiltonian, 
-            ansatz, 
-            params, 
-            optimizer, 
-            max_iterations = 100,
-            conv_tol       = None, 
-            device         = "default.qubit",
-            shots          = None,
-            callback       = None
-             ):
+def VQE(
+    Hamiltonian,
+    ansatz,
+    params,
+    optimizer,
+    max_iterations=100,
+    conv_tol=None,
+    device="default.qubit",
+    shots=None,
+    callback=None,
+):
 
     num_wires = len(Hamiltonian.wires)
     dev = qml.device(device, wires=num_wires, shots=shots)
+
     @qml.qnode(dev)
     def cost_func(params):
         ansatz(params)
@@ -36,7 +38,7 @@ def VQE( Hamiltonian,
             callback(params)
 
         # if n % 2 == 0:
-            # print(f"Step = {n},  Energy = {energy_k[-1]:.8f} Ha")
+        # print(f"Step = {n},  Energy = {energy_k[-1]:.8f} Ha")
 
         if conv_tol is not None:
             conv = np.abs(energy_k[-1] - prev_energy)
