@@ -8,6 +8,7 @@ setup(
     install_requires=[
         "numpy",
         "qiskit",
-        "qiskit_aer",
+        "qiskit-aer",
+        "matplotlib",
     ],
 )
