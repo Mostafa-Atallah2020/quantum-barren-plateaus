@@ -13,7 +13,6 @@ def _GateW(params):
 
 
 def _GateU(params):
-
     qc = QuantumCircuit(2, name="U")
     qc.u(params[0], params[1], params[2], qc.qubits[0])
     qc.u(params[3], params[4], params[5], qc.qubits[1])
@@ -28,9 +27,15 @@ def _GateU(params):
     return qc.to_gate()
 
 
-def W(self, params, qubits):
-    self.append(_GateW(params), qubits)
+def W(circuit, params, qubits):
+    """Add a W gate to the circuit."""
+    if len(params) != 3:
+        raise ValueError("W gate requires 3 parameters")
+    circuit.append(_GateW(params), qubits)
 
 
-def U(self, params, qubits):
-    self.append(_GateU(params), qubits)
+def U(circuit, params, qubits):
+    """Add a U gate to the circuit."""
+    if len(params) != 15:
+        raise ValueError("U gate requires 15 parameters")
+    circuit.append(_GateU(params), qubits)

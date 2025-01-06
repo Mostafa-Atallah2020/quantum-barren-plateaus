@@ -16,19 +16,20 @@ def Ansatz(
     offdiag_gate=W,
     diag_num_params=15,
     offdiag_num_params=3,
-    # reps = 1
     diagonal=True,
 ):
-
     qc = QuantumCircuit(num_qubits)
 
     # Starting parameter indices per gate
     diag_start = 0
     offdiag_start = (num_qubits - 1) * diag_num_params  # Total params in the diag
 
-    num_params = offdiag_start + offdiag_num_params * num_qubits * num_qubits // 2
+    num_params = offdiag_start
+    if not diagonal:
+        num_params += offdiag_num_params * num_qubits * num_qubits // 2
     params = ParameterVector("θ", num_params)
-    reps = 1  # TODO
+
+    reps = 1  # Fixed to 1 repetition
     for _ in range(reps):
         for i in range(num_qubits - 1):
             # Below diagonal
@@ -66,50 +67,45 @@ def Ansatz(
 
 
 def VQE_pretrain(hamiltonian, iters_train, returns=["x", "fx"]):
+    """Pre-train using MPS simulation."""
+    num_qubits = len(hamiltonian.paulis[0])
+    qc_mps = Ansatz(num_qubits, diagonal=True)
 
-    qc_mps = Ansatz(hamiltonian.num_qubits, diagonal=True)
     backend_mps = AerSimulator(
         method="matrix_product_state",
         matrix_product_state_max_bond_dimension=2,
         shots=2**13,
     )
+
     guess_mps = np.random.rand(qc_mps.num_parameters) * np.pi
     results_mps = VQE(
         hamiltonian, qc_mps, guess_mps, iters_train, backend_mps, returns=returns
     )
-
     results_mps["circuit"] = qc_mps
 
     return results_mps
 
 
-def VQE_pretrained(
-    hamiltonian, quantum_instance, iters_vqe, iters_train, returns=["x", "fx"]
-):
+def VQE_pretrained(hamiltonian, backend, num_iters, num_iters_train):
+    """VQE with MPS pre-training."""
+    # Pre-training phase
+    pretrain_results = VQE_pretrain(hamiltonian, num_iters_train)
 
-    returns_mps = np.unique(np.append(["x"], returns))
-    results_mps = VQE_pretrain(hamiltonian, iters_train, returns=returns_mps)
-    params_mps = np.mean(results_mps["x"][-10:], axis=0)
+    # Full VQE phase
+    num_qubits = len(hamiltonian.paulis[0])
+    ansatz_full = Ansatz(num_qubits, diagonal=False)
 
-    qc_full = Ansatz(hamiltonian.num_qubits, diagonal=False)
-    num_params_full = qc_full.num_parameters
+    # Initialize full parameters using pretrained diagonal part
+    n_diag = pretrain_results["circuit"].num_parameters
+    n_full = ansatz_full.num_parameters
 
-    guess_full = np.append(params_mps, np.zeros(num_params_full - len(params_mps)))
-    results_full = VQE(
-        hamiltonian,
-        qc_full,
-        guess_full,
-        iters_vqe,
-        quantum_instance,
-        iter_start=iters_train,
-        returns=returns,
-    )
+    initial_params = np.zeros(n_full)
+    initial_params[:n_diag] = pretrain_results["x"][-1]
+    initial_params[n_diag:] = np.random.randn(n_full - n_diag) * np.pi
 
-    results_full["circuit"] = qc_full
+    vqe_results = VQE(hamiltonian, ansatz_full, initial_params, num_iters, backend)
 
-    results = {
-        "pretrain": results_mps,
-        "full": results_full,
+    return {
+        "pretrain": pretrain_results,
+        "vqe": vqe_results,
     }
-
-    return results
