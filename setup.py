@@ -12,6 +12,6 @@ setup(
         "matplotlib",
         "qiskit-algorithms",
         "pylatexenc",  # Required for circuit visualization
-        "pillow",    # Required for image handling
+        "pillow",  # Required for image handling
     ],
 )

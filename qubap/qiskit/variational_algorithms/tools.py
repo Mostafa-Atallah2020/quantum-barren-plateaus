@@ -11,12 +11,6 @@ from qiskit_algorithms.optimizers import SPSA
 def classical_solver(hamiltonian):
     """
     Compute the minimum eigenvalue using NumPy solver.
-
-    Args:
-        hamiltonian (SparsePauliOp): Hamiltonian operator
-
-    Returns:
-        MinimumEigensolverResult: Results from the classical solver
     """
     eig = NumPyMinimumEigensolver()
     results = eig.compute_minimum_eigenvalue(operator=hamiltonian)
@@ -25,28 +19,31 @@ def classical_solver(hamiltonian):
 
 def energy_evaluation(hamiltonian, ansatz, parameters, backend, callback=None):
     """
-    Evaluate the energy given an ansatz and a Hamiltonian using modern Qiskit primitives.
-
-    Args:
-        hamiltonian (SparsePauliOp): Hamiltonian of the system
-        ansatz (QuantumCircuit): Parametrized quantum circuit
-        parameters (ndarray): Circuit parameters
-        backend: Qiskit backend to use
-        callback (callable, optional): Callback function
-
-    Returns:
-        float: Expected energy value
+    Evaluate the energy given an ansatz and a Hamiltonian using Qiskit primitives.
     """
-    bound_circuit = ansatz.bind_parameters(parameters)
-    estimator = Estimator(backend=backend)
+    bound_circuit = ansatz.assign_parameters(parameters)
 
-    job = estimator.run([bound_circuit], [hamiltonian])
+    # Get shots from backend if available
+    if hasattr(backend, "options"):
+        shots = backend.options.get("shots", 1024)
+    else:
+        shots = 1024
+
+    # Create estimator
+    estimator = Estimator()
+
+    # Run the estimation
+    job = estimator.run(
+        circuits=[bound_circuit],
+        observables=[hamiltonian],
+        parameter_values=[[]],  # Empty parameter values since we already bound them
+    )
     result = job.result()
     evaluation = result.values[0]
 
     if callback is not None:
         callback(parameters, evaluation)
-    return evaluation.real
+    return float(evaluation.real)
 
 
 def make_adiabatic_cost_and_callback(
@@ -89,9 +86,7 @@ def make_adiabatic_cost_and_callback(
 
 
 def make_data_and_callback(save=["x", "fx"]):
-    """
-    Create data storage and callback function.
-    """
+    """Create data storage and callback function."""
     if isinstance(save, str):
         save = [save]
     data = {key: [] for key in save}
@@ -105,9 +100,7 @@ def make_data_and_callback(save=["x", "fx"]):
 
 
 def SPSA_calibrated(fun, x0, iter_start=1, maxiter=100, **spsa_args):
-    """
-    Create calibrated SPSA optimizer.
-    """
+    """Create calibrated SPSA optimizer."""
     lr, pert = SPSA(**spsa_args).calibrate(fun, np.asarray(x0))
     ak, bk = lr(), pert()
 
