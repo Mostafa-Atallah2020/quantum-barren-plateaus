@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from qiskit.algorithms.optimizers import SPSA
+from qiskit.quantum_info import SparsePauliOp
+from qiskit_algorithms.optimizers import SPSA
 
 from .tools import (
     SPSA_calibrated,
@@ -8,8 +9,6 @@ from .tools import (
     make_adiabatic_cost_and_callback,
     make_data_and_callback,
 )
-
-# from qubap.qiskit.tools import make_data_and_callback, SPSA_calibrated
 
 
 def VQE(
@@ -22,16 +21,19 @@ def VQE(
     iter_start=0,
 ):
     """
-    Standard VQE
+    Standard VQE implementation using modern Qiskit primitives.
 
-    Input:
-        hamiltonian (PauliSumOp):
-        ansatz (QuantumCircuit):
-        initial_guess (ndarray):
-        num_iters (int): number of iteration of the VQE algorithm
-        quantum_instance (QuantumInstance):
-    Output:
-        (dict):
+    Args:
+        hamiltonian (SparsePauliOp): System Hamiltonian
+        ansatz (QuantumCircuit): Parametrized quantum circuit
+        initial_guess (ndarray): Initial parameters
+        num_iters (int): Number of VQE iterations
+        quantum_instance: Qiskit backend instance
+        returns (list): List of values to return
+        iter_start (int): Starting iteration number
+
+    Returns:
+        dict: Results dictionary containing specified return values
     """
     results, callback = make_data_and_callback(save=returns)
 
@@ -63,19 +65,8 @@ def VQE_adiabatic(
     returns=["x", "fx"],
 ):
     """
-    VQE in the adiabatic regime
-
-    Input:
-        hamiltonian (PauliSumOp):
-        ansatz (QuantumCircuit):
-        initial_guess (ndarray):
-        num_iters (int): number of iteration of the VQE algorithm
-        quantum_instance (QuantumInstance):
-
-    Output:
-        ():
+    VQE implementation with adiabatic evolution using modern Qiskit primitives.
     """
-
     acc_adiabatic, cb = make_data_and_callback(save=returns)
     cost, cb = make_adiabatic_cost_and_callback(
         Hglobal=hamiltonian_out,
@@ -104,20 +95,8 @@ def VQE_shift(
     returns=["x", "fx"],
 ):
     """
-    Description
-
-    Input:
-        hamiltonian_in (PauliSumOp):
-        hamiltonian_out (PauliSumOp):
-        ansatz (QuantumCircuit):
-        initial_guess (ndarray):
-        num_iters (int): number of iteration of the VQE algorithm
-        quantum_instance (QuantumInstance):
-
-    Output:
-        ():
+    VQE implementation with Hamiltonian shifting using modern Qiskit primitives.
     """
-
     results_in = VQE(
         hamiltonian_in,
         ansatz,

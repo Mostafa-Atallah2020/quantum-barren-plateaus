@@ -10,5 +10,6 @@ setup(
         "qiskit",
         "qiskit-aer",
         "matplotlib",
+        "qiskit-algorithms",
     ],
 )

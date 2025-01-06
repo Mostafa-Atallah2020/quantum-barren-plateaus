@@ -1,43 +1,60 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import qiskit.opflow as of
-from qiskit.algorithms import NumPyMinimumEigensolver
-from qiskit.algorithms.optimizers import SPSA
+from qiskit import QuantumCircuit
+from qiskit.primitives import Estimator
+from qiskit.quantum_info import SparsePauliOp
+from qiskit_algorithms.minimum_eigensolvers import NumPyMinimumEigensolver
+from qiskit_algorithms.optimizers import SPSA
 
 
 def classical_solver(hamiltonian):
+    """
+    Compute the minimum eigenvalue using NumPy solver.
+
+    Args:
+        hamiltonian (SparsePauliOp): Hamiltonian operator
+
+    Returns:
+        MinimumEigensolverResult: Results from the classical solver
+    """
     eig = NumPyMinimumEigensolver()
-    results = eig.compute_minimum_eigenvalue(hamiltonian)
+    results = eig.compute_minimum_eigenvalue(operator=hamiltonian)
     return results
 
 
-def energy_evaluation(hamiltonian, ansatz, parameters, quantum_instance, callback=None):
+def energy_evaluation(hamiltonian, ansatz, parameters, backend, callback=None):
     """
-    Evaluate the energy given an ansatz and a Hamiltonian
+    Evaluate the energy given an ansatz and a Hamiltonian using modern Qiskit primitives.
 
-    Input:
-    hamiltonian (PauliSumOp): Hamiltonian of the system
-    ansatz (QuantumCircuit):
-    initial_guess (ndarray):
-    quantum_instance (QuantumInstance):
+    Args:
+        hamiltonian (SparsePauliOp): Hamiltonian of the system
+        ansatz (QuantumCircuit): Parametrized quantum circuit
+        parameters (ndarray): Circuit parameters
+        backend: Qiskit backend to use
+        callback (callable, optional): Callback function
 
-    Output:
-        (dict):
+    Returns:
+        float: Expected energy value
     """
-    ansatz_state = of.StateFn(ansatz.bind_parameters(parameters))
-    measurement = of.StateFn(hamiltonian).adjoint() @ ansatz_state
-    pauli_circs = of.PauliExpectation().convert(measurement)
-    sampler = of.CircuitSampler(quantum_instance).convert(pauli_circs)
-    evaluation = sampler.eval().real
+    bound_circuit = ansatz.bind_parameters(parameters)
+    estimator = Estimator(backend=backend)
+
+    job = estimator.run([bound_circuit], [hamiltonian])
+    result = job.result()
+    evaluation = result.values[0]
+
     if callback is not None:
         callback(parameters, evaluation)
-    return evaluation
+    return evaluation.real
 
 
 def make_adiabatic_cost_and_callback(
     Hlocal, Hglobal, circ, backend, niters, transition_lims=(0.0, 1.0), callback=None
 ):
+    """
+    Create cost function and callback for adiabatic optimization.
+    """
     s = [0]
     a1, a2 = np.min(transition_lims), np.max(transition_lims)
 
@@ -48,8 +65,6 @@ def make_adiabatic_cost_and_callback(
             return int(x > a1)
 
     def cost(x):
-        # 'a' is linearly increasing.
-        # Starts at 0 for a1% of the iterations, and reaches 1.0 at a2%
         a = get_a(s[0] / niters)
         if a <= 0:
             H = Hlocal
@@ -74,6 +89,9 @@ def make_adiabatic_cost_and_callback(
 
 
 def make_data_and_callback(save=["x", "fx"]):
+    """
+    Create data storage and callback function.
+    """
     if isinstance(save, str):
         save = [save]
     data = {key: [] for key in save}
@@ -87,7 +105,9 @@ def make_data_and_callback(save=["x", "fx"]):
 
 
 def SPSA_calibrated(fun, x0, iter_start=1, maxiter=100, **spsa_args):
-
+    """
+    Create calibrated SPSA optimizer.
+    """
     lr, pert = SPSA(**spsa_args).calibrate(fun, np.asarray(x0))
     ak, bk = lr(), pert()
 
