@@ -5,8 +5,8 @@ sys.path.append("../../..")
 
 import numpy as np
 from qiskit.quantum_info import Pauli, SparsePauliOp
-
 from .tools import parse_hamiltonian
+import itertools
 
 
 def ladder_hamiltonian(num_qubits, transverse_field_intensity=0):
@@ -21,7 +21,6 @@ def ladder_hamiltonian(num_qubits, transverse_field_intensity=0):
     Returns:
         SparsePauliOp: The constructed Hamiltonian operator
     """
-
     def interactions(i, j):
         """Helper function to create ZZ interaction strings"""
         paulis = ["I"] * num_qubits
@@ -88,23 +87,31 @@ def test_hamiltonian_2(num_qubits, coeff):
 
 def test_hamiltonian(num_qubits):
     """
-    Creates a test Hamiltonian of the form I^⊗n - |0^⊗n⟩⟨0^⊗n|.
+    Creates a custom Hamiltonian for 6 qubits with the minimum eigenvalue set to 0.
+    The Hamiltonian has the form:
+    0.984375 * IIIIII - 0.015625 * (sum of all possible Z combinations)
 
     Args:
-        num_qubits (int): Number of qubits in the system
+        num_qubits (int): Number of qubits in the system (should be 6).
 
     Returns:
-        SparsePauliOp: The constructed Hamiltonian operator
+        SparsePauliOp: The constructed Hamiltonian operator.
     """
-    # Create identity term
-    identity_op = SparsePauliOp(["I" * num_qubits], coeffs=[1.0])
+    if num_qubits != 6:
+        raise ValueError("This Hamiltonian is designed for 6 qubits only.")
 
-    # Create the projection term |0⟩⟨0| = (I + Z)/2
-    # For n qubits, we need n factors of 1/2
-    proj_string = "Z" * num_qubits
-    proj_coeffs = [0.5**num_qubits]
+    # Initialize with identity term
+    terms = ["I" * num_qubits]
+    coeffs = [0.984375]
 
-    proj_op = SparsePauliOp([proj_string], coeffs=proj_coeffs)
+    # Generate all possible combinations of Z operators
+    for num_z in range(1, num_qubits + 1):
+        for positions in itertools.combinations(range(num_qubits), num_z):
+            pauli = ['I'] * num_qubits
+            for pos in positions:
+                pauli[pos] = 'Z'
+            terms.append(''.join(pauli))
+            coeffs.append(-0.015625)
 
-    # Combine terms: I - |0⟩⟨0|
-    return identity_op - proj_op
+    # Create and return the Hamiltonian
+    return SparsePauliOp(terms, coeffs)
