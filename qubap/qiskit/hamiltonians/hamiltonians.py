@@ -4,9 +4,59 @@ import sys
 sys.path.append("../../..")
 
 import numpy as np
+import itertools
 from qiskit.quantum_info import Pauli, SparsePauliOp
 from .tools import parse_hamiltonian
-import itertools
+
+
+def pretty_print_hamiltonian(hamiltonian):
+    """
+    Pretty print a SparsePauliOp in a readable format.
+
+    Args:
+        hamiltonian (SparsePauliOp): Hamiltonian to print
+    """
+    # Convert Paulis to string representations
+    paulis = [str(p) for p in hamiltonian.paulis]
+    coeffs = hamiltonian.coeffs.real
+
+    # Print first term (identity) without a sign
+    print(f"{coeffs[0]:.6f} * {paulis[0]}")
+
+    # Print remaining terms with negative signs
+    for pauli, coeff in zip(paulis[1:], coeffs[1:]):
+        print(f"- {abs(coeff):.6f} * {pauli}")
+
+
+def test_hamiltonian(num_qubits):
+    """
+    Creates a test Hamiltonian of the form I - |0⟩⟨0|.
+    For 6 qubits, this corresponds to:
+    0.984375 * IIIIII - 0.015625 * (sum of all Z combinations)
+
+    Args:
+        num_qubits (int): Number of qubits (must be 6)
+
+    Returns:
+        SparsePauliOp: The test Hamiltonian
+    """
+    if num_qubits != 6:
+        raise ValueError("This Hamiltonian is designed for 6 qubits only.")
+
+    # Initialize with identity term
+    terms = ["I" * num_qubits]
+    coeffs = [0.984375]
+
+    # Generate all possible combinations of Z operators
+    for num_z in range(1, num_qubits + 1):
+        for positions in itertools.combinations(range(num_qubits), num_z):
+            pauli = ["I"] * num_qubits
+            for pos in positions:
+                pauli[pos] = "Z"
+            terms.append("".join(pauli))
+            coeffs.append(-0.015625)
+
+    return SparsePauliOp(terms, coeffs)
 
 
 def ladder_hamiltonian(num_qubits, transverse_field_intensity=0):
@@ -21,6 +71,7 @@ def ladder_hamiltonian(num_qubits, transverse_field_intensity=0):
     Returns:
         SparsePauliOp: The constructed Hamiltonian operator
     """
+
     def interactions(i, j):
         """Helper function to create ZZ interaction strings"""
         paulis = ["I"] * num_qubits
@@ -81,37 +132,33 @@ def test_hamiltonian_2(num_qubits, coeff):
     x = np.zeros(num_qubits, dtype=bool)
     ops.append(Pauli((z, x)))
 
-    # Create SparsePauliOp directly
     return SparsePauliOp(ops, coeffs=coeff)
 
 
-def test_hamiltonian(num_qubits):
+def global2local(hamiltonian):
     """
-    Creates a custom Hamiltonian for 6 qubits with the minimum eigenvalue set to 0.
-    The Hamiltonian has the form:
-    0.984375 * IIIIII - 0.015625 * (sum of all possible Z combinations)
+    Convert a global Hamiltonian to its local form.
+    The transformation follows:
+    H_global = I^⊗n - |0^⊗n⟩⟨0^⊗n|
+    H_local = I^⊗n - (1/n)∑|0_j⟩⟨0_j|
 
     Args:
-        num_qubits (int): Number of qubits in the system (should be 6).
+        hamiltonian (SparsePauliOp): Input global Hamiltonian
 
     Returns:
-        SparsePauliOp: The constructed Hamiltonian operator.
+        SparsePauliOp: Local Hamiltonian
     """
-    if num_qubits != 6:
-        raise ValueError("This Hamiltonian is designed for 6 qubits only.")
+    num_qubits = len(hamiltonian.paulis[0])
 
-    # Initialize with identity term
+    # Create identity term
     terms = ["I" * num_qubits]
-    coeffs = [0.984375]
+    coeffs = [1.0]
 
-    # Generate all possible combinations of Z operators
-    for num_z in range(1, num_qubits + 1):
-        for positions in itertools.combinations(range(num_qubits), num_z):
-            pauli = ['I'] * num_qubits
-            for pos in positions:
-                pauli[pos] = 'Z'
-            terms.append(''.join(pauli))
-            coeffs.append(-0.015625)
+    # Add local terms
+    for i in range(num_qubits):
+        pauli = ["I"] * num_qubits
+        pauli[i] = "Z"
+        terms.append("".join(pauli))
+        coeffs.append(-1.0 / num_qubits)
 
-    # Create and return the Hamiltonian
     return SparsePauliOp(terms, coeffs)
