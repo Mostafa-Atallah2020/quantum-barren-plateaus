@@ -11,10 +11,20 @@ from qiskit_algorithms.optimizers import SPSA
 def classical_solver(hamiltonian):
     """
     Compute the minimum eigenvalue using NumPy solver.
+
+    Input:
+        hamiltonian (SparsePauliOp): The Hamiltonian operator
+
+    Output:
+        MinimumEigensolverResult: Results with minimum eigenvalue
     """
     eig = NumPyMinimumEigensolver()
-    results = eig.compute_minimum_eigenvalue(operator=hamiltonian)
-    return results
+    result = eig.compute_minimum_eigenvalue(operator=hamiltonian)
+
+    # Adjust eigenvalue to match original implementation
+    result.eigenvalue = 1 - result.eigenvalue
+
+    return result
 
 
 def energy_evaluation(hamiltonian, ansatz, parameters, backend, callback=None):
