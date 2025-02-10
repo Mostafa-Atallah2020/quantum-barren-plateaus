@@ -5,180 +5,180 @@ from qiskit import QuantumCircuit
 from qiskit.circuit import ParameterVector
 
 
-def cnot_layer(n_qbits, n_cnot="Full_connect"):
+def cnot_layer(n_qubits, n_cnot="Full_connect"):
     """
-    Create a CNOT layer for the state efficient ansatz.
+    Create an entangling layer circuit.
 
     Args:
-        n_qbits (int): Number of qubits
-        n_cnot (str or list): CNOT configuration, can be "Full_connect" or a list of indices
+        n_qubits (int): Number of qubits in the circuit
+        n_cnot (Union[str, int, List[List[int]]]): Specifies the type of entangling layer:
+            - 'Full_connect': Circuit is fully connected with CNOT gates
+            - int: Number of CNOTs to implement from first qubit to last of first half
+            - List[List[int]]: List of [control, target] qubit pairs
 
     Returns:
-        QuantumCircuit: Circuit with CNOT gates
+        QuantumCircuit: The entangling layer circuit
     """
-    sysA = int(n_qbits / 2)
-    circ = QuantumCircuit(n_qbits)
+    sys_a = int(n_qubits / 2)
+    circuit = QuantumCircuit(n_qubits)
 
-    if n_cnot == "Linear":
-        for indx in range(sysA - 1):
-            circ.cx(indx, indx + 1)
-            circ.cx(indx + sysA, indx + sysA + 1)
+    if isinstance(n_cnot, int):
+        for idx in range(n_cnot):
+            circuit.cx(idx, idx + sys_a)
 
     elif n_cnot == "Full_connect":
-        for indx in range(sysA):
-            circ.cx(indx, indx + sysA)
+        for idx in range(sys_a):
+            circuit.cx(idx, idx + sys_a)
 
-    else:
-        n_cnot = np.shape(n_cnot)[0]
-        for indx in range(n_cnot):
-            circ.cx(n_cnot[indx, 0], n_cnot[indx, 1])
+    else:  # List of [control, target] pairs
+        for control, target in n_cnot:
+            circuit.cx(control, target)
 
-    return circ
+    return circuit
 
 
-def rx_layer(n_qbits, params, qbits=None, name=None):
+def count_scl_parameters(num_qubits, n_qubits_crz, deep):
     """
-    Create an RX rotation layer.
+    Calculate the number of parameters needed for an SCL layer.
 
     Args:
-        n_qbits (int): Number of qubits
-        params (ParameterVector): Parameters for rotations
-        qbits (list, optional): Specific qubits to apply rotations
-        name (str, optional): Name for the parameter vector
+        num_qubits (int): Number of qubits
+        n_qubits_crz (int): Number of qubits in CZ gates
+        deep (int): Depth of the circuit
 
     Returns:
-        QuantumCircuit: Circuit with RX rotations
+        int: Total number of parameters needed
     """
-    if qbits is None:
-        qbits = range(n_qbits)
+    # Initial RY gates
+    params = num_qubits
 
-    qc = QuantumCircuit(n_qbits)
-    for indx, qubit in enumerate(qbits):
-        qc.rx(params[indx], qubit)
+    for _ in range(deep):
+        # RY gates after first CZ layer
+        params += num_qubits
 
-    return qc
+        # RY gates after second CZ layer
+        n_blocks = (num_qubits - 1) // n_qubits_crz
+        params += 2 * n_blocks * (n_qubits_crz - 1)
+
+    return params
 
 
-def ry_layer(n_qbits, params, qbits=None, name=None):
+def SCL(params, qubits, n_qubits_crz=2, deep=1, name=None):
     """
-    Create an RY rotation layer.
+    Schmidt Coefficient Layer (SCL) that performs a Schmidt decomposition or basis change.
 
     Args:
-        n_qbits (int): Number of qubits
-        params (ParameterVector): Parameters for rotations
-        qbits (list, optional): Specific qubits to apply rotations
-        name (str, optional): Name for the parameter vector
+        params (ParameterVector): Parameters for the circuit
+        qubits (List[int]): Qubits to apply the layer to
+        n_qubits_crz (int): Number of qubits in CZ gate
+        deep (int): Number of times to repeat the circuit
+        name (str, optional): Name of the circuit
 
     Returns:
-        QuantumCircuit: Circuit with RY rotations
+        Gate: The SCL quantum gate
     """
-    if qbits is None:
-        qbits = range(n_qbits)
+    num_qubits = len(qubits)
+    circuit = QuantumCircuit(num_qubits, name=name)
+    param_idx = 0
 
-    qc = QuantumCircuit(n_qbits)
-    for indx, qubit in enumerate(qbits):
-        qc.ry(params[indx], qubit)
+    # Initial RY rotations
+    for i in range(num_qubits):
+        circuit.ry(params[param_idx], i)
+        param_idx += 1
 
-    return qc
+    # Deep layers
+    for _ in range(deep):
+        # First CZ layer
+        for i in range(0, num_qubits - 1, n_qubits_crz):
+            for l in range(1, min(n_qubits_crz, num_qubits - i)):
+                circuit.cz(i, i + l)
 
+        # Middle RY layer
+        for i in range(num_qubits):
+            circuit.ry(params[param_idx], i)
+            param_idx += 1
 
-def rz_layer(n_qbits, params, qbits=None, name=None):
-    """
-    Create an RZ rotation layer.
+        # Second CZ layer with RY gates
+        for i in range(1, num_qubits - 1, n_qubits_crz):
+            for l in range(1, min(n_qubits_crz, num_qubits - i)):
+                circuit.cz(i, i + l)
+                circuit.ry(params[param_idx], i)
+                circuit.ry(params[param_idx], i + l)
+                param_idx += 1
 
-    Args:
-        n_qbits (int): Number of qubits
-        params (ParameterVector): Parameters for rotations
-        qbits (list, optional): Specific qubits to apply rotations
-        name (str, optional): Name for the parameter vector
-
-    Returns:
-        QuantumCircuit: Circuit with RZ rotations
-    """
-    if qbits is None:
-        qbits = range(n_qbits)
-
-    qc = QuantumCircuit(n_qbits)
-    for indx, qubit in enumerate(qbits):
-        qc.rz(params[indx], qubit)
-
-    return qc
+    return circuit.to_gate()
 
 
 def ansatz_constructor(
-    n_qbits,
-    unitaries=[rx_layer, ry_layer, rz_layer],
+    n_qubits,
+    unitaries=None,
     n_qb_crz=None,
-    deep=[1, 1, 1],
+    deep=None,
     n_cnot="Full_connect",
-    set_barrier=True,
+    set_barrier=False,
 ):
     """
-    Construct a State Efficient Ansatz.
+    Construct a State Efficient Ansatz (SEA) quantum circuit.
 
     Args:
-        n_qbits (int): Number of qubits
-        unitaries (list): List of unitary operations to use
-        n_qb_crz (int, optional): Number of qubits for controlled rotations
-        deep (list): Depth of each unitary layer
-        n_cnot (str or list): CNOT configuration
+        n_qubits (int): Number of qubits in the circuit
+        unitaries (List[callable], optional): Three PQCs that form the SEA
+        n_qb_crz (List[int], optional): Number of qubits in CZ gate for each PQC
+        deep (List[int], optional): Repetition count for each circuit
+        n_cnot (Union[str, int, List[List[int]]]): Entangling layer specification
         set_barrier (bool): Whether to add barriers between layers
 
     Returns:
-        QuantumCircuit: The constructed ansatz circuit
+        QuantumCircuit: The complete SEA circuit
     """
-    qc = QuantumCircuit(n_qbits)
+    # Set default values
+    if unitaries is None:
+        unitaries = [SCL, SCL, SCL]
+    if n_qb_crz is None:
+        n_qb_crz = [2, 2, 2]
+    if deep is None:
+        deep = [1, 1, 1]
 
-    # Count total parameters
-    n_params = 0
-    for i, d in enumerate(deep):
-        n_params += d * int(n_qbits / 2)
+    half_qubits = int(n_qubits / 2)
+    half_qubit_range = list(range(half_qubits))
+
+    # Calculate parameters for each SCL
+    params_per_layer = [
+        count_scl_parameters(half_qubits, n_qb_crz[i], deep[i]) for i in range(3)
+    ]
 
     # Create parameter vectors
-    params_1 = ParameterVector("θ1", deep[0] * int(n_qbits / 2))
-    params_2 = ParameterVector("θ2", deep[1] * int(n_qbits / 2))
-    params_3 = ParameterVector("θ3", deep[2] * int(n_qbits / 2))
+    params_1 = ParameterVector("θ", params_per_layer[0])
+    params_2 = ParameterVector("φ", params_per_layer[1])
+    params_3 = ParameterVector("ω", params_per_layer[2])
+
+    # Create main circuit
+    circuit = QuantumCircuit(n_qubits)
 
     # Create unitary layers
     U_1 = unitaries[0](
-        n_qbits,
-        params_1,
-        range(int(n_qbits / 2)),
-        name="U1",
+        params_1, half_qubit_range, n_qubits_crz=n_qb_crz[0], deep=deep[0], name="U1"
     )
     U_2 = unitaries[1](
-        n_qbits,
-        params_2,
-        range(int(n_qbits / 2)),
-        name="U2",
+        params_2, half_qubit_range, n_qubits_crz=n_qb_crz[1], deep=deep[1], name="U2"
     )
     U_3 = unitaries[2](
-        n_qbits,
-        params_3,
-        range(int(n_qbits / 2)),
-        name="U3",
+        params_3, half_qubit_range, n_qubits_crz=n_qb_crz[2], deep=deep[2], name="U3"
     )
 
-    # Create entanglement layer
-    ent_l = cnot_layer(n_qbits, n_cnot=n_cnot)
+    # Create entangling layer
+    entangling_layer = cnot_layer(n_qubits, n_cnot=n_cnot)
 
     # Compose circuit
-    qc = qc.compose(U_1)
+    circuit.compose(U_1, qubits=range(half_qubits), inplace=True)
     if set_barrier:
-        qc.barrier()
+        circuit.barrier()
 
-    qc = qc.compose(ent_l)
+    circuit.compose(entangling_layer, qubits=range(n_qubits), inplace=True)
     if set_barrier:
-        qc.barrier()
+        circuit.barrier()
 
-    qc = qc.compose(U_2)
-    if set_barrier:
-        qc.barrier()
+    circuit.compose(U_2, qubits=range(half_qubits), inplace=True)
+    circuit.compose(U_3, qubits=range(half_qubits, n_qubits), inplace=True)
 
-    qc = qc.compose(ent_l)
-    if set_barrier:
-        qc.barrier()
-
-    qc = qc.compose(U_3)
-
-    return qc
+    return circuit
